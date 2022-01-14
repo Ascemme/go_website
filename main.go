@@ -2,7 +2,9 @@ package main
 
 import (
 	"html/template"
+	"io"
 	"net/http"
+	"os"
 )
 
 type User struct {
@@ -41,30 +43,47 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func contactPage(w http.ResponseWriter, r *http.Request) {
+
 	tmpl, error := template.ParseFiles("webView/templates/secondPage.html")
+	file, handler, err := r.FormFile("myfile")
 	if error == nil {
 		tmpl.Execute(w, "")
 	}
-}
+	if err != nil {
+		print(err)
+		print("error")
+		return
+	}
+	defer file.Close()
 
+	dst, err := os.Create(handler.Filename)
+	defer dst.Close()
+	if err != nil {
+		return
+	}
+	if _, err := io.Copy(dst, file); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
 func auth(w http.ResponseWriter, r *http.Request) {
+	newdata := &User{}
 	tmpl, error := template.ParseFiles("webView/templates/auth.html")
 	if error != nil {
 		return
 	}
-
-	data := User{
+	data := *newdata
+	data = User{
 		UserName: r.FormValue("username"),
 		Password: r.FormValue("password"),
 	}
-
+	print(data.Success)
 	if data.Password == "qwe" {
 		data.Success = true
 	} else {
 		data.Success = false
 	}
-
-	data.Storege = "Welcome to my html" + data.UserName
-
+	data.Storege = "Welcome to my html " + data.UserName
 	tmpl.Execute(w, data)
 }
